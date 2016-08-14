@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ServiceTimer</string>
+    <string name="current_timer">Current Timer</string>
+</resources>
