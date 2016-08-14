@@ -2,11 +2,14 @@ package com.example.admin.servicetimer;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -21,7 +24,7 @@ public class MainActivity extends Activity {
     TextView timerView;
     Intent timerService;
     boolean receiverRegistered;
-    long currentTime, duration = 20000;
+    long currentTime, duration = 5000;
 
     @Override
     protected void onStart() {
@@ -49,6 +52,7 @@ public class MainActivity extends Activity {
             public void onClick(View view) {
                 if(!isMyServiceRunning(TimerService.class)) {
                     timerService.setAction(Constants.ACTION.STARTFOREGROUND_ACTION);
+                    timerService.putExtra(Constants.TIMER.DURATION,duration);
                     startService(timerService);
                     registerReceiver(broadcastReceiver, new IntentFilter(Constants.ACTION.BROADCAST_ACTION));
                     receiverRegistered = true;
@@ -62,7 +66,6 @@ public class MainActivity extends Activity {
                 if(isMyServiceRunning(TimerService.class)) {
                     timerView.setText("0:00");
                     timerService.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
-                    timerService.putExtra(Constants.TIMER.DURATION,duration);
                     startService(timerService);
                     unregisterReceiver(broadcastReceiver);
 
@@ -70,6 +73,14 @@ public class MainActivity extends Activity {
                 }
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(!isMyServiceRunning(TimerService.class)) {
+            timerView.setText("0:00");
+        }
     }
 
     @Override
@@ -90,6 +101,7 @@ public class MainActivity extends Activity {
                 if(!updateUI(timerService)){
                     timerService.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
                     startService(timerService);
+                    createNotification();
                 }
             }
         }
@@ -125,6 +137,21 @@ public class MainActivity extends Activity {
             }
         }
         return false;
+    }
+
+    private Notification createNotification() {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .setContentTitle("Timer Active")
+                .setContentText("Tap to return to the timer")
+                .setSmallIcon(R.mipmap.ic_launcher);
+
+        Intent resultIntent = new Intent(this, TimerService.class);
+        PendingIntent resultPendingIntent =
+                PendingIntent.getActivity(this, 0, resultIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT);
+        builder.setContentIntent(resultPendingIntent);
+
+        return builder.build();
     }
 
 }
