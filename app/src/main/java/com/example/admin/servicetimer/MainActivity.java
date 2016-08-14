@@ -3,12 +3,17 @@ package com.example.admin.servicetimer;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 import android.view.View;
@@ -23,23 +28,21 @@ public class MainActivity extends Activity {
 
     TextView timerView;
     Intent timerService;
-    boolean receiverRegistered;
-    long currentTime, duration = 5000;
+    long currentTime, duration = 15000;
 
     @Override
     protected void onStart() {
         super.onStart();
+        timerService = new Intent(this, TimerService.class);
         //Register broadcast if service is already running
         if(isMyServiceRunning(TimerService.class)){
             registerReceiver(broadcastReceiver, new IntentFilter(Constants.ACTION.BROADCAST_ACTION));
-            receiverRegistered = true;
         }
     }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        timerService = new Intent(this, TimerService.class);
 
 
         Button startButton, stopButton;
@@ -55,7 +58,6 @@ public class MainActivity extends Activity {
                     timerService.putExtra(Constants.TIMER.DURATION,duration);
                     startService(timerService);
                     registerReceiver(broadcastReceiver, new IntentFilter(Constants.ACTION.BROADCAST_ACTION));
-                    receiverRegistered = true;
                 }
             }
         });
@@ -68,8 +70,6 @@ public class MainActivity extends Activity {
                     timerService.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
                     startService(timerService);
                     unregisterReceiver(broadcastReceiver);
-
-                    receiverRegistered = false;
                 }
             }
         });
@@ -86,9 +86,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop() {
         super.onStop();
-        if(receiverRegistered){
-            unregisterReceiver(broadcastReceiver);
-        }
+
     }
 
     /******************** Broadcast Receiver **************************************/
@@ -101,7 +99,7 @@ public class MainActivity extends Activity {
                 if(!updateUI(timerService)){
                     timerService.setAction(Constants.ACTION.STOPFOREGROUND_ACTION);
                     startService(timerService);
-                    createNotification();
+                    showTimerCompleteNotification();
                 }
             }
         }
@@ -126,9 +124,42 @@ public class MainActivity extends Activity {
     }
     /******************************************************************************************/
 
-    /************* Helper Methods ****************************/
 
-    //Checks if the service is already running.
+    /************* Helper Methods ****************************/
+    private void showTimerCompleteNotification() {
+
+        Intent resultIntent = new Intent(this, MainActivity.class);
+        PendingIntent resultPendingIntent =
+                PendingIntent.getActivity(
+                        this,
+                        0,
+                        resultIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT
+                );
+        NotificationCompat.Builder mBuilder =
+                new NotificationCompat.Builder(this)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentTitle("Timer Done!")
+                        .setContentText("Congrats")
+                        .setContentIntent(resultPendingIntent)
+                        .setColor(Color.BLACK);
+
+        // Gets an instance of the NotificationManager service
+        final NotificationManager mNotifyMgr =
+                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        // Builds the notification and issues it.
+        mNotifyMgr.notify(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE, mBuilder.build());
+
+        //Cancel the notification after a little while
+        Handler h = new Handler();
+        long delayInMilliseconds = 5000;
+
+        h.postDelayed(new Runnable() {
+            public void run() {
+                mNotifyMgr.cancel(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE);
+            }
+        }, delayInMilliseconds);
+    }
     private boolean isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
@@ -137,21 +168,6 @@ public class MainActivity extends Activity {
             }
         }
         return false;
-    }
-
-    private Notification createNotification() {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
-                .setContentTitle("Timer Active")
-                .setContentText("Tap to return to the timer")
-                .setSmallIcon(R.mipmap.ic_launcher);
-
-        Intent resultIntent = new Intent(this, TimerService.class);
-        PendingIntent resultPendingIntent =
-                PendingIntent.getActivity(this, 0, resultIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT);
-        builder.setContentIntent(resultPendingIntent);
-
-        return builder.build();
     }
 
 }

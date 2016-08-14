@@ -45,7 +45,7 @@ public class TimerService extends Service{
                 if (intent.hasExtra(Constants.TIMER.DURATION)) {
                     duration = intent.getLongExtra(Constants.TIMER.DURATION, 0);
                 }
-                startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE, showNotification());
+                startForeground(Constants.NOTIFICATION_ID.FOREGROUND_SERVICE, createTimerNotification());
             } else if (intent.getAction().equals(Constants.ACTION.STOPFOREGROUND_ACTION)) {
                 stopForeground(true);
                 stopSelf();
@@ -89,7 +89,7 @@ public class TimerService extends Service{
     }
 
 
-    private Notification showNotification() {
+    private Notification createTimerNotification() {
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.setAction(Constants.ACTION.MAIN_ACTION);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
