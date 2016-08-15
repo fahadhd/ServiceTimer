@@ -6,8 +6,11 @@ import android.app.Service;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.PowerManager;
+import android.os.SystemClock;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
@@ -27,12 +30,16 @@ public class TimerService extends Service{
 
     private final Handler handler = new Handler();
     long currentTime, duration;
+    long timeSinceLastOn, elapsedTimeSinceOff;
+    boolean screenWasAsleep = false;
+
 
     @Override
     public void onCreate() {
         super.onCreate();
-        currentTime = 0L;
-        duration = 0L;
+        timeSinceLastOn = SystemClock.elapsedRealtime();
+        Log.d(TAG,"time since last on "+timeSinceLastOn);
+        currentTime = duration = elapsedTimeSinceOff = 0L;
         intent = new Intent(Constants.ACTION.BROADCAST_ACTION);
         handler.removeCallbacks(timerThread);
         handler.postDelayed(timerThread,0);
@@ -50,18 +57,38 @@ public class TimerService extends Service{
                 stopForeground(true);
                 stopSelf();
             }
+
         }
         return START_STICKY;
     }
 
-    //Thread handler uses to push to messagequeue. This creates a timer effect.
+    //Thread handler uses to push to message queue. This creates a timer effect.
     private Runnable timerThread = new Runnable() {
         @Override
         public void run() {
+            SystemClock.elapsedRealtime();
+
             if(currentTime == duration){
                 stopSelf();
                 return;
             }
+            //Waits until the screen is turned back on
+            while(!isScreenOn()){
+                try {
+                    Thread.sleep(1000);
+                    screenWasAsleep = true;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            //When the screen is on, updates timer with the elapsed time since it was off.
+            if(screenWasAsleep && isScreenOn()){
+                elapsedTimeSinceOff = SystemClock.elapsedRealtime() - timeSinceLastOn;
+                Log.d(TAG," screen was off and updating current time by"+elapsedTimeSinceOff);
+                currentTime += elapsedTimeSinceOff;
+                screenWasAsleep = false;
+            }
+            timeSinceLastOn = SystemClock.elapsedRealtime();
             currentTime += 1000;
             sendTimerInfo();
             handler.postDelayed(this,1000);
@@ -69,9 +96,12 @@ public class TimerService extends Service{
     };
 
     private void sendTimerInfo(){
-        Log.d(TAG,"timer running: tick is "+currentTime);
-        intent.putExtra(Constants.TIMER.CURRENT_TIME,currentTime);
-        sendBroadcast(intent);
+        if(isScreenOn()) {
+            Log.d(TAG, "timer running: tick is " + currentTime);
+            intent.putExtra(Constants.TIMER.CURRENT_TIME, currentTime);
+            sendBroadcast(intent);
+        }
+
     }
 
     @Override
@@ -110,5 +140,11 @@ public class TimerService extends Service{
                 .setOngoing(true)
                 .build();
         return notification;
+    }
+
+    public boolean isScreenOn(){
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        boolean result= Build.VERSION.SDK_INT>= Build.VERSION_CODES.KITKAT_WATCH&&powerManager.isInteractive()|| Build.VERSION.SDK_INT< Build.VERSION_CODES.KITKAT_WATCH&&powerManager.isScreenOn();
+        return result;
     }
 }

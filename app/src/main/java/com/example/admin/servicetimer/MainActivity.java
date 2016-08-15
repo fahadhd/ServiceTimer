@@ -12,6 +12,7 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.NotificationCompat;
@@ -28,7 +29,7 @@ public class MainActivity extends Activity {
 
     TextView timerView;
     Intent timerService;
-    long currentTime, duration = 15000;
+    long currentTime, duration = 40000;
 
     @Override
     protected void onStart() {
@@ -127,7 +128,6 @@ public class MainActivity extends Activity {
 
     /************* Helper Methods ****************************/
     private void showTimerCompleteNotification() {
-
         Intent resultIntent = new Intent(this, MainActivity.class);
         PendingIntent resultPendingIntent =
                 PendingIntent.getActivity(
@@ -142,7 +142,11 @@ public class MainActivity extends Activity {
                         .setContentTitle("Timer Done!")
                         .setContentText("Congrats")
                         .setContentIntent(resultPendingIntent)
-                        .setColor(Color.BLACK);
+                        .setColor(Color.BLACK)
+                        .setLights(Color.BLUE, 500, 500)
+                        .setDefaults(NotificationCompat.DEFAULT_VIBRATE)
+                        .setDefaults(NotificationCompat.DEFAULT_SOUND)
+                        .setStyle(new NotificationCompat.InboxStyle());
 
         // Gets an instance of the NotificationManager service
         final NotificationManager mNotifyMgr =
